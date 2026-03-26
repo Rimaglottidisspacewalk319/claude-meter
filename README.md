@@ -138,6 +138,23 @@ This separation is deliberate:
 
 ## Quickstart
 
+### Option 1: One-liner install (builds from source)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/opslane/claude-meter/main/install.sh | bash
+```
+
+### Option 2: Manual install (review source first)
+
+```bash
+git clone https://github.com/opslane/claude-meter.git
+cd claude-meter
+go build -o claude-meter ./cmd/claude-meter
+./claude-meter start --plan-tier max_20x
+```
+
+### Run from source
+
 Run the proxy:
 
 ```bash
