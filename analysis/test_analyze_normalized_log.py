@@ -502,6 +502,7 @@ class TestAnalyzeNormalizedLog(unittest.TestCase):
         self.assertIn("interval_estimates", parsed)
         self.assertIn("adjacent_deltas", parsed)
         self.assertIn("meter_comparison", parsed)
+        self.assertIn("estimate_band", parsed)
 
     def test_builds_5h_meter_comparison_for_raw_and_price_equivalent(self):
         records = [
@@ -564,6 +565,134 @@ class TestAnalyzeNormalizedLog(unittest.TestCase):
                         "max": 6250.0,
                     },
                 }
+            },
+        )
+
+    def test_filters_clean_5h_intervals_for_estimate_band(self):
+        intervals = [
+            {
+                "account_fingerprint": "unknown",
+                "declared_plan_tier": "max_20x",
+                "window": "5h",
+                "meter": "price_equivalent_5m",
+                "start_timestamp": "2026-03-25T20:00:00Z",
+                "end_timestamp": "2026-03-25T20:02:00Z",
+                "record_count": 2,
+                "complete_usage": True,
+                "implied_cap": 5_000_000.0,
+                "models": ["claude-opus-4-6"],
+            },
+            {
+                "account_fingerprint": "unknown",
+                "declared_plan_tier": "max_20x",
+                "window": "5h",
+                "meter": "price_equivalent_5m",
+                "start_timestamp": "2026-03-25T20:03:00Z",
+                "end_timestamp": "2026-03-25T20:05:00Z",
+                "record_count": 2,
+                "complete_usage": True,
+                "implied_cap": 7_000_000.0,
+                "models": ["claude-opus-4-6"],
+            },
+            {
+                "account_fingerprint": "unknown",
+                "declared_plan_tier": "max_20x",
+                "window": "5h",
+                "meter": "price_equivalent_5m",
+                "start_timestamp": "2026-03-25T20:06:00Z",
+                "end_timestamp": "2026-03-25T20:08:00Z",
+                "record_count": 2,
+                "complete_usage": True,
+                "implied_cap": 9_000_000.0,
+                "models": ["claude-opus-4-6"],
+            },
+            {
+                "account_fingerprint": "unknown",
+                "declared_plan_tier": "max_20x",
+                "window": "5h",
+                "meter": "price_equivalent_5m",
+                "start_timestamp": "2026-03-25T20:09:00Z",
+                "end_timestamp": "2026-03-25T20:45:00Z",
+                "record_count": 2,
+                "complete_usage": True,
+                "implied_cap": 11_000_000.0,
+                "models": ["claude-opus-4-6"],
+            },
+            {
+                "account_fingerprint": "unknown",
+                "declared_plan_tier": "max_20x",
+                "window": "5h",
+                "meter": "price_equivalent_5m",
+                "start_timestamp": "2026-03-25T20:46:00Z",
+                "end_timestamp": "2026-03-25T20:48:00Z",
+                "record_count": 2,
+                "complete_usage": True,
+                "implied_cap": 13_000_000.0,
+                "models": ["claude-opus-4-6", "claude-sonnet-4-6"],
+            },
+            {
+                "account_fingerprint": "unknown",
+                "declared_plan_tier": "max_20x",
+                "window": "5h",
+                "meter": "price_equivalent_5m",
+                "start_timestamp": "2026-03-25T20:49:00Z",
+                "end_timestamp": "2026-03-25T20:51:00Z",
+                "record_count": 2,
+                "complete_usage": True,
+                "implied_cap": 15_000_000.0,
+                "models": ["claude-opus-4-6"],
+            },
+            {
+                "account_fingerprint": "unknown",
+                "declared_plan_tier": "max_20x",
+                "window": "7d",
+                "meter": "price_equivalent_5m",
+                "start_timestamp": "2026-03-25T20:52:00Z",
+                "end_timestamp": "2026-03-25T20:54:00Z",
+                "record_count": 2,
+                "complete_usage": True,
+                "implied_cap": 17_000_000.0,
+                "models": ["claude-opus-4-6"],
+            },
+            {
+                "account_fingerprint": "unknown",
+                "declared_plan_tier": "max_20x",
+                "window": "5h",
+                "meter": "effective_tokens_raw",
+                "start_timestamp": "2026-03-25T20:55:00Z",
+                "end_timestamp": "2026-03-25T20:57:00Z",
+                "record_count": 2,
+                "complete_usage": True,
+                "implied_cap": 19_000_000.0,
+                "models": ["claude-opus-4-6"],
+            },
+        ]
+
+        filtered = analyzer.filter_estimate_band_intervals(intervals)
+
+        self.assertEqual(
+            [interval["implied_cap"] for interval in filtered],
+            [7_000_000.0, 9_000_000.0, 15_000_000.0],
+        )
+
+    def test_summarizes_filtered_estimate_band(self):
+        intervals = [
+            {"implied_cap": 7_000_000.0},
+            {"implied_cap": 9_000_000.0},
+            {"implied_cap": 15_000_000.0},
+        ]
+
+        summary = analyzer.summarize_estimate_band(intervals)
+
+        self.assertEqual(
+            summary,
+            {
+                "count": 3,
+                "min": 7_000_000.0,
+                "p25": 8_000_000.0,
+                "median": 9_000_000.0,
+                "p75": 12_000_000.0,
+                "max": 15_000_000.0,
             },
         )
 

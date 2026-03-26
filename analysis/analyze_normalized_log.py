@@ -2,6 +2,7 @@
 """Analyze normalized Claude sniffer logs for limit-estimation spikes."""
 
 import argparse
+import datetime as dt
 import json
 import statistics
 from pathlib import Path
@@ -100,6 +101,17 @@ def _model_price_units_5m(model):
 
 def _record_sort_timestamp(record):
     return record.get("response_timestamp") or record.get("request_timestamp") or ""
+
+
+def _parse_iso_timestamp(value):
+    if not value:
+        return None
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    try:
+        return dt.datetime.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _account_fingerprint(record):
@@ -359,6 +371,106 @@ def build_meter_comparison(records):
     return comparison
 
 
+def _quantile(sorted_values, percentile):
+    if not sorted_values:
+        return None
+    if len(sorted_values) == 1:
+        return sorted_values[0]
+    idx = (len(sorted_values) - 1) * percentile
+    lower = int(idx)
+    upper = min(lower + 1, len(sorted_values) - 1)
+    if lower == upper:
+        return sorted_values[lower]
+    fraction = idx - lower
+    return sorted_values[lower] + (sorted_values[upper] - sorted_values[lower]) * fraction
+
+
+def filter_estimate_band_intervals(
+    intervals,
+    window="5h",
+    meter="price_equivalent_5m",
+    max_record_count=10,
+    max_duration_minutes=20,
+):
+    eligible = [
+        interval
+        for interval in intervals
+        if interval.get("window") == window
+        and interval.get("meter") == meter
+        and interval.get("complete_usage") is True
+        and isinstance(interval.get("implied_cap"), (int, float))
+    ]
+
+    eligible.sort(
+        key=lambda interval: (
+            interval.get("account_fingerprint") or "unknown",
+            interval.get("declared_plan_tier") or "unknown",
+            interval.get("window") or "",
+            interval.get("meter") or "",
+            interval.get("start_timestamp") or "",
+            interval.get("end_timestamp") or "",
+            interval.get("end_id") or 0,
+        )
+    )
+
+    filtered = []
+    seen_first_by_cohort = set()
+
+    for interval in eligible:
+        cohort = (
+            interval.get("account_fingerprint") or "unknown",
+            interval.get("declared_plan_tier") or "unknown",
+            interval.get("window") or "",
+            interval.get("meter") or "",
+        )
+        if cohort not in seen_first_by_cohort:
+            seen_first_by_cohort.add(cohort)
+            continue
+
+        if len(interval.get("models") or []) != 1:
+            continue
+        if (interval.get("record_count") or 0) > max_record_count:
+            continue
+
+        start_at = _parse_iso_timestamp(interval.get("start_timestamp") or "")
+        end_at = _parse_iso_timestamp(interval.get("end_timestamp") or "")
+        if start_at is None or end_at is None:
+            continue
+        duration_minutes = (end_at - start_at).total_seconds() / 60
+        if duration_minutes < 0 or duration_minutes > max_duration_minutes:
+            continue
+
+        filtered.append(interval)
+
+    return filtered
+
+
+def summarize_estimate_band(intervals):
+    caps = sorted(interval["implied_cap"] for interval in intervals if isinstance(interval.get("implied_cap"), (int, float)))
+    if not caps:
+        return {"count": 0}
+    return {
+        "count": len(caps),
+        "min": min(caps),
+        "p25": _quantile(caps, 0.25),
+        "median": statistics.median(caps),
+        "p75": _quantile(caps, 0.75),
+        "max": max(caps),
+    }
+
+
+def build_estimate_band(records, window="5h", meter="price_equivalent_5m"):
+    intervals = build_utilization_intervals(records, meter=meter)
+    filtered = filter_estimate_band_intervals(intervals, window=window, meter=meter)
+    if not filtered:
+        return {}
+    return {
+        window: {
+            meter: summarize_estimate_band(filtered),
+        }
+    }
+
+
 def render_analysis(log_path):
     records = list(load_records(log_path))
     summary = {
@@ -367,6 +479,7 @@ def render_analysis(log_path):
         "adjacent_deltas": build_adjacent_deltas(records),
         "interval_estimates": build_utilization_intervals(records),
         "meter_comparison": build_meter_comparison(records),
+        "estimate_band": build_estimate_band(records),
     }
     return json.dumps(summary, sort_keys=True)
 
