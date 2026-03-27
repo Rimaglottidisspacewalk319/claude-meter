@@ -598,6 +598,7 @@ def main():
     else:
         html = _generate_no_data_html()
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html)
     print(f"Dashboard written to {output_path.resolve()}")
 
