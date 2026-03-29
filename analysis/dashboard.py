@@ -587,9 +587,28 @@ def main():
         dest="open_browser",
         help="Open the dashboard in the default browser",
     )
+    parser.add_argument(
+        "--api",
+        action="store_true",
+        help="Output JSON stats instead of HTML (for live dashboard polling)",
+    )
     args = parser.parse_args()
 
     records = anl.load_records_multi(args.log_dir)
+
+    if args.api:
+        if records:
+            data = _build_dashboard_data(records)
+        else:
+            data = {
+                "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+                "token_summary": {"api_calls": 0, "windows": {}},
+                "budget_estimates": {},
+                "time_series_5h": [],
+                "time_series_7d": [],
+            }
+        json.dump(data, sys.stdout)
+        return
 
     if records:
         data = _build_dashboard_data(records)
