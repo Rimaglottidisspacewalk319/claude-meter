@@ -1,3 +1,5 @@
+import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -70,3 +72,56 @@ def test_output_flag_writes_to_path(tmp_path):
     content = out_file.read_text()
     assert "<canvas" in content
     assert len(content) > 1000
+
+
+def test_build_dashboard_data_returns_dict():
+    records = _sample_records()
+    data = dashboard._build_dashboard_data(records)
+    assert isinstance(data, dict)
+    assert "generated_at" in data
+    assert "token_summary" in data
+    assert "budget_estimates" in data
+    assert "time_series_5h" in data
+    assert "time_series_7d" in data
+
+
+def test_api_json_output():
+    records = _sample_records()
+    data = dashboard._build_dashboard_data(records)
+    json_str = json.dumps(data)
+    parsed = json.loads(json_str)
+    assert parsed["token_summary"]["api_calls"] == 3
+    assert "windows" in parsed["token_summary"]
+
+
+def test_api_json_empty_data():
+    data = dashboard._build_dashboard_data([])
+    json_str = json.dumps(data)
+    parsed = json.loads(json_str)
+    assert parsed["token_summary"]["api_calls"] == 0
+
+
+def test_api_flag_outputs_json(tmp_path):
+    """Integration test: run dashboard.py --api and verify JSON output."""
+    norm_dir = tmp_path / "normalized"
+    norm_dir.mkdir()
+    record = json.dumps({
+        "id": 1,
+        "request_timestamp": "2026-03-25T20:00:00Z",
+        "response_timestamp": "2026-03-25T20:00:01Z",
+        "status": 200,
+        "declared_plan_tier": "max_20x",
+        "response_model": "claude-opus-4-6",
+        "usage": {"input_tokens": 100, "output_tokens": 50},
+        "ratelimit": {"windows": {"5h": {"utilization": 0.1}}},
+    })
+    (norm_dir / "2026-03-25.jsonl").write_text(record + "\n")
+
+    result = subprocess.run(
+        ["python3", "analysis/dashboard.py", str(tmp_path), "--api"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    data = json.loads(result.stdout)
+    assert data["token_summary"]["api_calls"] == 1

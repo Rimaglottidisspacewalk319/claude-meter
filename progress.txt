@@ -1,0 +1,18 @@
+# Progress Tracker
+# Started: 2026-03-28
+# Plan: docs/plans/2026-03-28-proxy-ux-features.md
+
+## Completed
+- [x] Task 1: Add ANSI color helpers (commit: febb27a)
+- [x] Task 2: Add per-request CLI logging (commit: a05ecfc)
+- [x] Task 3: Add periodic status line (commit: afd930f)
+- [x] Review: refactored effectiveModel + formatUtilWindows (commit: 1f423ce)
+- [x] Task 4: Add startup banner (commit: 5c41979)
+- [x] Task 5: Add setup subcommand (commit: 719f4e8)
+- [x] Task 6: Add --api flag to dashboard.py (commit: 4a709ae)
+- [x] Task 7: Add /api/stats endpoint (commit: d61b818)
+- [x] Task 8: Create embedded live dashboard HTML (commit: d6ebe3e)
+- [x] Task 9: Add --status-interval flag (commit: ab8d949)
+- [x] Task 10: Final integration test — all Go/Python tests PASS, binary builds
+
+## Status: COMPLETE

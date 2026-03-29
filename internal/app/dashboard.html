@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>claude-meter dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #1a1b26;
+    --surface: #24283b;
+    --border: #414868;
+    --text: #c0caf5;
+    --text-muted: #565f89;
+    --accent: #7aa2f7;
+    --accent2: #bb9af7;
+    --green: #9ece6a;
+    --yellow: #e0af68;
+    --red: #f7768e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 0;
+  }
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 24px;
+  }
+  .header h1 { font-size: 18px; font-weight: 600; color: var(--accent); }
+  .header .meta { font-size: 13px; color: var(--text-muted); }
+  .header .meta span { margin-right: 16px; }
+  .header .meta strong { color: var(--text); }
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 16px; }
+  .card.full { grid-column: 1 / -1; }
+  .gauge-row { display: flex; gap: 32px; flex-wrap: wrap; }
+  .gauge { flex: 1; min-width: 180px; }
+  .gauge-label { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+  .gauge-bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-bottom: 4px; position: relative; }
+  .gauge-bar .fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+  .gauge-bar .peak-marker { position: absolute; top: -2px; width: 2px; height: 12px; background: var(--red); border-radius: 1px; transition: left 0.5s ease; }
+  .gauge-value { font-size: 28px; font-weight: 700; transition: color 0.3s; }
+  .gauge-peak { font-size: 12px; color: var(--text-muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-weight: 600; color: var(--text-muted); padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  td.muted { color: var(--text-muted); font-style: italic; }
+  .total-row td { font-weight: 700; border-top: 2px solid var(--border); }
+  .chart-container { position: relative; height: 300px; }
+  .notice { font-size: 11px; color: var(--text-muted); text-align: center; padding: 16px; border-top: 1px solid var(--border); margin-top: 24px; }
+  .color-green { color: var(--green); }
+  .color-yellow { color: var(--yellow); }
+  .color-red { color: var(--red); }
+  .error-banner { background: var(--red); color: var(--bg); padding: 8px 16px; text-align: center; font-size: 13px; display: none; }
+  @media (max-width: 700px) {
+    .grid { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="error-banner" id="errorBanner">Could not reach stats API. Retrying...</div>
+
+<div class="header">
+  <h1><span class="live-dot"></span>claude-meter</h1>
+  <div class="meta">
+    <span>Plan: <strong id="planTier">-</strong></span>
+    <span>Period: <strong id="dateRange">-</strong></span>
+    <span>API calls: <strong id="apiCalls">-</strong></span>
+    <span>Updated: <strong id="updatedAt">-</strong></span>
+  </div>
+</div>
+
+<div class="container">
+  <div class="grid">
+    <div class="card">
+      <h2>Current Utilization</h2>
+      <div class="gauge-row">
+        <div class="gauge">
+          <div class="gauge-label">5-hour window</div>
+          <div class="gauge-bar"><div class="fill" id="fill5h"></div><div class="peak-marker" id="peak5h"></div></div>
+          <div class="gauge-value" id="val5h">-</div>
+          <div class="gauge-peak" id="peakLabel5h">Peak: -</div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">7-day window</div>
+          <div class="gauge-bar"><div class="fill" id="fill7d"></div><div class="peak-marker" id="peak7d"></div></div>
+          <div class="gauge-value" id="val7d">-</div>
+          <div class="gauge-peak" id="peakLabel7d">Peak: -</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Token Usage</h2>
+      <table>
+        <tr><th>Type</th><th>Tokens</th></tr>
+        <tr><td>Input</td><td id="tokInput">-</td></tr>
+        <tr><td>Output</td><td id="tokOutput">-</td></tr>
+        <tr><td>Cache read</td><td id="tokCacheRead">-</td></tr>
+        <tr><td>Cache create</td><td id="tokCacheCreate">-</td></tr>
+        <tr class="total-row"><td>Total</td><td id="tokTotal">-</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card full">
+      <h2>Budget Estimates (per window cycle)</h2>
+      <table>
+        <tr><th>Window</th><th>Range</th><th>Median</th><th>p25-p75</th><th>Sessions</th></tr>
+        <tbody id="budgetRows"><tr><td colspan="5" class="muted">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card full">
+      <h2>Utilization Over Time</h2>
+      <div class="chart-container">
+        <canvas id="utilizationChart"></canvas>
+        <p id="noChartData" style="color: var(--text-muted); text-align: center; padding: 60px 0; display: none;">No utilization data available</p>
+      </div>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card full">
+      <h2>Per-Model Breakdown</h2>
+      <table>
+        <tr><th>Model</th><th>Calls</th><th>Input Tokens</th><th>Output Tokens</th></tr>
+        <tbody id="modelRows"><tr><td colspan="4" class="muted">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="notice">Live dashboard. Refreshes every 5 seconds.</div>
+</div>
+
+<script>
+let chart = null;
+
+function gaugeColor(pct) {
+  if (pct >= 80) return 'var(--red)';
+  if (pct >= 50) return 'var(--yellow)';
+  return 'var(--green)';
+}
+
+function gaugeClass(pct) {
+  if (pct >= 80) return 'color-red';
+  if (pct >= 50) return 'color-yellow';
+  return 'color-green';
+}
+
+function fmt(n) {
+  return n.toLocaleString();
+}
+
+// Escape HTML entities to prevent XSS from model/window names in API data
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fmtTokens(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return n.toString();
+}
+
+function updateDashboard(data) {
+  const ts = data.token_summary || {};
+  const budget = data.budget_estimates || {};
+
+  document.getElementById('planTier').textContent = ts.plan_tier || 'unknown';
+  const first = (ts.first_timestamp || '').substring(0, 10);
+  const last = (ts.last_timestamp || '').substring(0, 10);
+  document.getElementById('dateRange').textContent = first && last ? first + ' to ' + last : 'N/A';
+  document.getElementById('apiCalls').textContent = fmt(ts.api_calls || 0);
+  document.getElementById('updatedAt').textContent = (data.generated_at || '').substring(0,19).replace('T',' ') + ' UTC';
+
+  const windows = ts.windows || {};
+  const w5h = windows['5h'] || {};
+  const w7d = windows['7d'] || {};
+  const cur5h = Math.round((w5h.current || 0) * 1000) / 10;
+  const peak5h = Math.round((w5h.peak || 0) * 1000) / 10;
+  const cur7d = Math.round((w7d.current || 0) * 1000) / 10;
+  const peak7d = Math.round((w7d.peak || 0) * 1000) / 10;
+
+  document.getElementById('fill5h').style.width = Math.min(cur5h, 100) + '%';
+  document.getElementById('fill5h').style.background = gaugeColor(cur5h);
+  document.getElementById('peak5h').style.left = Math.min(peak5h, 100) + '%';
+  document.getElementById('val5h').textContent = cur5h + '%';
+  document.getElementById('val5h').className = 'gauge-value ' + gaugeClass(cur5h);
+  document.getElementById('peakLabel5h').textContent = 'Peak: ' + peak5h + '%';
+
+  document.getElementById('fill7d').style.width = Math.min(cur7d, 100) + '%';
+  document.getElementById('fill7d').style.background = gaugeColor(cur7d);
+  document.getElementById('peak7d').style.left = Math.min(peak7d, 100) + '%';
+  document.getElementById('val7d').textContent = cur7d + '%';
+  document.getElementById('val7d').className = 'gauge-value ' + gaugeClass(cur7d);
+  document.getElementById('peakLabel7d').textContent = 'Peak: ' + peak7d + '%';
+
+  document.getElementById('tokInput').textContent = fmt(ts.input_tokens || 0);
+  document.getElementById('tokOutput').textContent = fmt(ts.output_tokens || 0);
+  const cacheRead = ts.cache_read_tokens || 0;
+  document.getElementById('tokCacheRead').textContent = fmt(cacheRead) + (ts.cache_read_pct ? ' (' + ts.cache_read_pct + '%)' : '');
+  document.getElementById('tokCacheCreate').textContent = fmt(ts.cache_create_tokens || 0);
+  const total = (ts.input_tokens||0) + (ts.output_tokens||0) + cacheRead + (ts.cache_create_tokens||0);
+  document.getElementById('tokTotal').textContent = fmt(total);
+
+  // Budget (esc() all data values to prevent XSS from API data)
+  let budgetHTML = '';
+  for (const [wname, est] of Object.entries(budget).sort()) {
+    const count = est.sessions || 0;
+    if (count === 0) {
+      budgetHTML += '<tr><td>' + esc(wname) + '</td><td colspan="4" class="muted">Not enough data</td></tr>';
+    } else if (count === 1) {
+      budgetHTML += '<tr><td>' + esc(wname) + '</td><td>$' + Math.round(est.median).toLocaleString() + '</td><td>$' + Math.round(est.median).toLocaleString() + '</td><td>-</td><td>1</td></tr>';
+    } else {
+      budgetHTML += '<tr><td>' + esc(wname) + '</td><td>$' + Math.round(est.min).toLocaleString() + ' - $' + Math.round(est.max).toLocaleString() + '</td><td>$' + Math.round(est.median).toLocaleString() + '</td><td>$' + Math.round(est.p25||0).toLocaleString() + ' - $' + Math.round(est.p75||0).toLocaleString() + '</td><td>' + count + '</td></tr>';
+    }
+  }
+  document.getElementById('budgetRows').innerHTML = budgetHTML || '<tr><td colspan="5" class="muted">Not enough data</td></tr>';
+
+  // Models (esc() model names to prevent XSS)
+  let modelHTML = '';
+  const models = ts.models || {};
+  for (const [model, mdata] of Object.entries(models).sort((a,b) => b[1].calls - a[1].calls)) {
+    modelHTML += '<tr><td>' + esc(model) + '</td><td>' + fmt(mdata.calls) + '</td><td>' + fmtTokens(mdata.input) + '</td><td>' + fmtTokens(mdata.output) + '</td></tr>';
+  }
+  document.getElementById('modelRows').innerHTML = modelHTML || '<tr><td colspan="4" class="muted">No model data</td></tr>';
+
+  // Chart
+  updateChart(data.time_series_5h || [], data.time_series_7d || []);
+}
+
+function updateChart(ts5h, ts7d) {
+  const ctx = document.getElementById('utilizationChart');
+  if (!ctx) return;
+  if (ts5h.length === 0 && ts7d.length === 0) {
+    if (chart) { chart.destroy(); chart = null; }
+    ctx.style.display = 'none';
+    document.getElementById('noChartData').style.display = 'block';
+    return;
+  }
+  ctx.style.display = 'block';
+  document.getElementById('noChartData').style.display = 'none';
+
+  const allTs = new Set();
+  ts5h.forEach(p => allTs.add(p.timestamp));
+  ts7d.forEach(p => allTs.add(p.timestamp));
+  const labels = Array.from(allTs).sort();
+
+  const map5h = {}; ts5h.forEach(p => { map5h[p.timestamp] = p.utilization; });
+  const map7d = {}; ts7d.forEach(p => { map7d[p.timestamp] = p.utilization; });
+
+  const data5h = labels.map(ts => ({ x: ts, y: map5h[ts] != null ? (map5h[ts] * 100).toFixed(1) : null }));
+  const data7d = labels.map(ts => ({ x: ts, y: map7d[ts] != null ? (map7d[ts] * 100).toFixed(1) : null }));
+
+  if (chart) {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data5h;
+    chart.data.datasets[1].data = data7d;
+    chart.update('none');
+    return;
+  }
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: '5h window', data: data5h, borderColor: '#7aa2f7', backgroundColor: 'rgba(122,162,247,0.1)', borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.1, spanGaps: false },
+        { label: '7d window', data: data7d, borderColor: '#bb9af7', backgroundColor: 'rgba(187,154,247,0.1)', borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.1, spanGaps: false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { type: 'category', ticks: { color: '#565f89', maxTicksLimit: 12, maxRotation: 45, callback: function(v) { const l = this.getLabelForValue(v); return l ? l.substring(5,16).replace('T',' ') : ''; } }, grid: { color: 'rgba(65,72,104,0.3)' } },
+        y: { min: 0, max: 100, ticks: { color: '#565f89', callback: v => v + '%' }, grid: { color: 'rgba(65,72,104,0.3)' } }
+      },
+      plugins: { legend: { labels: { color: '#c0caf5' } }, tooltip: { callbacks: { title: items => items.length ? items[0].raw.x.replace('T',' ').substring(0,19) : '', label: item => item.dataset.label + ': ' + item.raw.y + '%' } } }
+    }
+  });
+}
+
+async function fetchStats() {
+  try {
+    const res = await fetch('/api/stats');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    document.getElementById('errorBanner').style.display = 'none';
+    updateDashboard(data);
+  } catch (e) {
+    document.getElementById('errorBanner').style.display = 'block';
+  }
+}
+
+fetchStats();
+setInterval(fetchStats, 5000);
+</script>
+
+</body>
+</html>
