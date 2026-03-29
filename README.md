@@ -53,6 +53,10 @@ The longer-term goal is bigger:
 - transparent pass-through proxy for `api.anthropic.com`
 - asynchronous logging so proxying stays ahead of disk writes
 - all capture is local
+- color-coded CLI logging for every request (model, tokens, utilization)
+- periodic status summaries via `--status-interval`
+- live web dashboard at `http://localhost:7735` with auto-refresh
+- `setup` subcommand to auto-configure your shell
 
 ### Raw Capture
 
@@ -160,6 +164,14 @@ go build -o claude-meter ./cmd/claude-meter
 ./claude-meter start --plan-tier max_20x
 ```
 
+### Auto-configure your shell
+
+```bash
+claude-meter setup
+```
+
+This detects your shell (bash, zsh, fish) and adds the `ANTHROPIC_BASE_URL` export to your rc file so Claude Code always routes through the proxy.
+
 ### Run from source
 
 Run the proxy:
@@ -168,7 +180,7 @@ Run the proxy:
 go run ./cmd/claude-meter start --plan-tier max_20x
 ```
 
-Point Claude Code at it:
+Point Claude Code at it (or use `claude-meter setup` to make this permanent):
 
 ```bash
 ANTHROPIC_BASE_URL=http://127.0.0.1:7735 claude
@@ -237,6 +249,18 @@ Generate charts and a markdown report:
 ```bash
 python3 analysis/report.py ~/.claude-meter --output /tmp/cm-report
 ```
+
+## CLI Logging
+
+When the proxy is running, every API request is logged to stderr with color-coded output:
+
+- **Success (2xx):** model name, token counts (input/output/cache), and rate-limit utilization
+- **Rate limited (429):** red warning with utilization percentages and retry-after
+- **Errors (4xx/5xx):** status code and message in yellow
+
+Utilization colors: green (<50%), yellow (50-80%), red (>=80%). Respects `NO_COLOR` for plain output.
+
+Use `--status-interval N` to print a periodic summary every N requests showing total counts, per-model breakdown, and current utilization.
 
 ## Dashboard
 
@@ -316,7 +340,8 @@ That is why the long-term value is not just local observability. It is eventuall
 
 ## Repo Layout
 
-- [cmd/claude-meter](cmd/claude-meter): proxy entrypoint and backfill command
+- [cmd/claude-meter](cmd/claude-meter): proxy entrypoint, backfill command, and setup subcommand
+- [internal/app](internal/app): application lifecycle, CLI logging, color output, and embedded dashboard
 - [internal/proxy](internal/proxy): transparent HTTP proxy
 - [internal/normalize](internal/normalize): response parsing and normalized record derivation
 - [internal/storage](internal/storage): raw and normalized JSONL writers
