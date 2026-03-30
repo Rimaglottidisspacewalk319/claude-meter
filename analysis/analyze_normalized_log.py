@@ -594,10 +594,14 @@ def build_token_summary(records):
     sorted_records = sorted(records, key=_record_sort_timestamp)
     for r in sorted_records:
         for wname, wdata in ((r.get("ratelimit") or {}).get("windows") or {}).items():
+            entry = windows.setdefault(wname, {"current": 0, "peak": 0})
+            reset_ts = wdata.get("reset_ts")
+            if isinstance(reset_ts, int) and reset_ts > 0:
+                entry["reset_ts"] = reset_ts
+
             util = wdata.get("utilization")
             if not isinstance(util, (int, float)):
                 continue
-            entry = windows.setdefault(wname, {"current": 0, "peak": 0})
             entry["current"] = util
             if util > entry["peak"]:
                 entry["peak"] = util

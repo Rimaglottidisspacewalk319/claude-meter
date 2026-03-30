@@ -54,6 +54,7 @@
   .gauge-bar .peak-marker { position: absolute; top: -2px; width: 2px; height: 12px; background: var(--red); border-radius: 1px; transform: translateX(-50%); transition: left 0.5s ease; }
   .gauge-value { font-size: 28px; font-weight: 700; transition: color 0.3s; }
   .gauge-peak { font-size: 12px; color: var(--text-muted); }
+  .gauge-reset { font-size: 12px; color: var(--text-muted); }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th { text-align: left; font-weight: 600; color: var(--text-muted); padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
   td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
@@ -96,12 +97,14 @@
           <div class="gauge-bar"><div class="fill" id="fill5h"></div><div class="peak-marker" id="peak5h"></div></div>
           <div class="gauge-value" id="val5h">-</div>
           <div class="gauge-peak" id="peakLabel5h">Peak: -</div>
+          <div class="gauge-reset" id="resetLabel5h">Reset: -</div>
         </div>
         <div class="gauge">
           <div class="gauge-label">7-day window</div>
           <div class="gauge-bar"><div class="fill" id="fill7d"></div><div class="peak-marker" id="peak7d"></div></div>
           <div class="gauge-value" id="val7d">-</div>
           <div class="gauge-peak" id="peakLabel7d">Peak: -</div>
+          <div class="gauge-reset" id="resetLabel7d">Reset: -</div>
         </div>
       </div>
     </div>
@@ -179,11 +182,24 @@ function fmtTokens(n) {
   return n.toString();
 }
 
-function updateGauge(fillId, peakId, valueId, labelId, currentPct, peakPct) {
+function formatReset(resetTs) {
+  if (!resetTs) return '-';
+  const date = new Date(resetTs * 1000);
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(date);
+}
+
+function updateGauge(fillId, peakId, valueId, peakLabelId, resetLabelId, currentPct, peakPct, resetTs) {
   const fill = document.getElementById(fillId);
   const peak = document.getElementById(peakId);
   const value = document.getElementById(valueId);
-  const label = document.getElementById(labelId);
+  const peakLabel = document.getElementById(peakLabelId);
+  const resetLabel = document.getElementById(resetLabelId);
 
   fill.style.width = Math.min(currentPct, 100) + '%';
   fill.style.background = gaugeColor(currentPct);
@@ -200,7 +216,8 @@ function updateGauge(fillId, peakId, valueId, labelId, currentPct, peakPct) {
 
   value.textContent = currentPct + '%';
   value.className = 'gauge-value ' + gaugeClass(currentPct);
-  label.textContent = 'Peak: ' + peakPct + '%';
+  peakLabel.textContent = 'Peak: ' + peakPct + '%';
+  resetLabel.textContent = 'Reset: ' + formatReset(resetTs);
 }
 
 function updateDashboard(data) {
@@ -219,11 +236,13 @@ function updateDashboard(data) {
   const w7d = windows['7d'] || {};
   const cur5h = Math.round((w5h.current || 0) * 1000) / 10;
   const peak5h = Math.round((w5h.peak || 0) * 1000) / 10;
+  const reset5h = w5h.reset_ts || null;
   const cur7d = Math.round((w7d.current || 0) * 1000) / 10;
   const peak7d = Math.round((w7d.peak || 0) * 1000) / 10;
+  const reset7d = w7d.reset_ts || null;
 
-  updateGauge('fill5h', 'peak5h', 'val5h', 'peakLabel5h', cur5h, peak5h);
-  updateGauge('fill7d', 'peak7d', 'val7d', 'peakLabel7d', cur7d, peak7d);
+  updateGauge('fill5h', 'peak5h', 'val5h', 'peakLabel5h', 'resetLabel5h', cur5h, peak5h, reset5h);
+  updateGauge('fill7d', 'peak7d', 'val7d', 'peakLabel7d', 'resetLabel7d', cur7d, peak7d, reset7d);
 
   document.getElementById('tokInput').textContent = fmt(ts.input_tokens || 0);
   document.getElementById('tokOutput').textContent = fmt(ts.output_tokens || 0);

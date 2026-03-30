@@ -22,6 +22,15 @@ def _fmt_tokens(n):
     return str(n)
 
 
+def _fmt_reset_timestamp(reset_ts):
+    """Format a reset timestamp for compact display in static HTML."""
+    if not reset_ts:
+        return "-"
+    return dt.datetime.fromtimestamp(reset_ts, dt.timezone.utc).strftime(
+        "%Y-%m-%d %H:%M UTC"
+    )
+
+
 def _downsample(series, max_points=500):
     """Downsample a time series using max-per-bucket selection.
 
@@ -77,8 +86,10 @@ def _generate_html(data):
     w7d = windows.get("7d", {})
     cur_5h = round(w5h.get("current", 0) * 100, 1)
     peak_5h = round(w5h.get("peak", 0) * 100, 1)
+    reset_5h = w5h.get("reset_ts")
     cur_7d = round(w7d.get("current", 0) * 100, 1)
     peak_7d = round(w7d.get("peak", 0) * 100, 1)
+    reset_7d = w7d.get("reset_ts")
 
     input_tok = ts["input_tokens"]
     output_tok = ts["output_tokens"]
@@ -256,6 +267,10 @@ def _generate_html(data):
     font-size: 12px;
     color: var(--text-muted);
   }}
+  .gauge-reset {{
+    font-size: 12px;
+    color: var(--text-muted);
+  }}
   table {{
     width: 100%;
     border-collapse: collapse;
@@ -330,19 +345,21 @@ def _generate_html(data):
           <div class="gauge-label">5-hour window</div>
           <div class="gauge-bar">
             <div class="fill" style="width: {min(cur_5h, 100)}%; background: {'var(--green)' if cur_5h < 50 else 'var(--yellow)' if cur_5h < 80 else 'var(--red)'}"></div>
-            <div class="peak-marker" style="left: {min(peak_5h, 100)}%"></div>
+            <div class="peak-marker" style="left: {min(peak_5h, 100)}%; display: {'block' if peak_5h > cur_5h else 'none'}"></div>
           </div>
           <div class="gauge-value {'color-green' if cur_5h < 50 else 'color-yellow' if cur_5h < 80 else 'color-red'}">{cur_5h}%</div>
           <div class="gauge-peak">Peak: {peak_5h}%</div>
+          <div class="gauge-reset">Reset: {_fmt_reset_timestamp(reset_5h)}</div>
         </div>
         <div class="gauge">
           <div class="gauge-label">7-day window</div>
           <div class="gauge-bar">
             <div class="fill" style="width: {min(cur_7d, 100)}%; background: {'var(--green)' if cur_7d < 50 else 'var(--yellow)' if cur_7d < 80 else 'var(--red)'}"></div>
-            <div class="peak-marker" style="left: {min(peak_7d, 100)}%"></div>
+            <div class="peak-marker" style="left: {min(peak_7d, 100)}%; display: {'block' if peak_7d > cur_7d else 'none'}"></div>
           </div>
           <div class="gauge-value {'color-green' if cur_7d < 50 else 'color-yellow' if cur_7d < 80 else 'color-red'}">{cur_7d}%</div>
           <div class="gauge-peak">Peak: {peak_7d}%</div>
+          <div class="gauge-reset">Reset: {_fmt_reset_timestamp(reset_7d)}</div>
         </div>
       </div>
     </div>
