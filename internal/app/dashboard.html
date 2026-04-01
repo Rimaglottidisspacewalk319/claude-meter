@@ -51,9 +51,10 @@
   .gauge-label { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
   .gauge-bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-bottom: 4px; position: relative; }
   .gauge-bar .fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-  .gauge-bar .peak-marker { position: absolute; top: -2px; width: 2px; height: 12px; background: var(--red); border-radius: 1px; transition: left 0.5s ease; }
+  .gauge-bar .peak-marker { position: absolute; top: -2px; width: 2px; height: 12px; background: var(--red); border-radius: 1px; transform: translateX(-50%); transition: left 0.5s ease; }
   .gauge-value { font-size: 28px; font-weight: 700; transition: color 0.3s; }
   .gauge-peak { font-size: 12px; color: var(--text-muted); }
+  .gauge-reset { font-size: 12px; color: var(--text-muted); }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th { text-align: left; font-weight: 600; color: var(--text-muted); padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
   td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
@@ -96,12 +97,14 @@
           <div class="gauge-bar"><div class="fill" id="fill5h"></div><div class="peak-marker" id="peak5h"></div></div>
           <div class="gauge-value" id="val5h">-</div>
           <div class="gauge-peak" id="peakLabel5h">Peak: -</div>
+          <div class="gauge-reset" id="resetLabel5h">Reset: -</div>
         </div>
         <div class="gauge">
           <div class="gauge-label">7-day window</div>
           <div class="gauge-bar"><div class="fill" id="fill7d"></div><div class="peak-marker" id="peak7d"></div></div>
           <div class="gauge-value" id="val7d">-</div>
           <div class="gauge-peak" id="peakLabel7d">Peak: -</div>
+          <div class="gauge-reset" id="resetLabel7d">Reset: -</div>
         </div>
       </div>
     </div>
@@ -179,6 +182,44 @@ function fmtTokens(n) {
   return n.toString();
 }
 
+function formatReset(resetTs) {
+  if (!resetTs) return '-';
+  const date = new Date(resetTs * 1000);
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(date);
+}
+
+function updateGauge(fillId, peakId, valueId, peakLabelId, resetLabelId, currentPct, peakPct, resetTs) {
+  const fill = document.getElementById(fillId);
+  const peak = document.getElementById(peakId);
+  const value = document.getElementById(valueId);
+  const peakLabel = document.getElementById(peakLabelId);
+  const resetLabel = document.getElementById(resetLabelId);
+
+  fill.style.width = Math.min(currentPct, 100) + '%';
+  fill.style.background = gaugeColor(currentPct);
+
+  // Only show a separate peak marker when the displayed peak is ahead of the
+  // displayed current utilization. If they overlap, the red marker reads like
+  // an odd cap on the fill bar rather than useful information.
+  if (peakPct > currentPct) {
+    peak.style.display = 'block';
+    peak.style.left = Math.min(peakPct, 100) + '%';
+  } else {
+    peak.style.display = 'none';
+  }
+
+  value.textContent = currentPct + '%';
+  value.className = 'gauge-value ' + gaugeClass(currentPct);
+  peakLabel.textContent = 'Peak: ' + peakPct + '%';
+  resetLabel.textContent = 'Reset: ' + formatReset(resetTs);
+}
+
 function updateDashboard(data) {
   const ts = data.token_summary || {};
   const budget = data.budget_estimates || {};
@@ -195,22 +236,13 @@ function updateDashboard(data) {
   const w7d = windows['7d'] || {};
   const cur5h = Math.round((w5h.current || 0) * 1000) / 10;
   const peak5h = Math.round((w5h.peak || 0) * 1000) / 10;
+  const reset5h = w5h.reset_ts || null;
   const cur7d = Math.round((w7d.current || 0) * 1000) / 10;
   const peak7d = Math.round((w7d.peak || 0) * 1000) / 10;
+  const reset7d = w7d.reset_ts || null;
 
-  document.getElementById('fill5h').style.width = Math.min(cur5h, 100) + '%';
-  document.getElementById('fill5h').style.background = gaugeColor(cur5h);
-  document.getElementById('peak5h').style.left = Math.min(peak5h, 100) + '%';
-  document.getElementById('val5h').textContent = cur5h + '%';
-  document.getElementById('val5h').className = 'gauge-value ' + gaugeClass(cur5h);
-  document.getElementById('peakLabel5h').textContent = 'Peak: ' + peak5h + '%';
-
-  document.getElementById('fill7d').style.width = Math.min(cur7d, 100) + '%';
-  document.getElementById('fill7d').style.background = gaugeColor(cur7d);
-  document.getElementById('peak7d').style.left = Math.min(peak7d, 100) + '%';
-  document.getElementById('val7d').textContent = cur7d + '%';
-  document.getElementById('val7d').className = 'gauge-value ' + gaugeClass(cur7d);
-  document.getElementById('peakLabel7d').textContent = 'Peak: ' + peak7d + '%';
+  updateGauge('fill5h', 'peak5h', 'val5h', 'peakLabel5h', 'resetLabel5h', cur5h, peak5h, reset5h);
+  updateGauge('fill7d', 'peak7d', 'val7d', 'peakLabel7d', 'resetLabel7d', cur7d, peak7d, reset7d);
 
   document.getElementById('tokInput').textContent = fmt(ts.input_tokens || 0);
   document.getElementById('tokOutput').textContent = fmt(ts.output_tokens || 0);

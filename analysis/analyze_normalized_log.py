@@ -594,10 +594,14 @@ def build_token_summary(records):
     sorted_records = sorted(records, key=_record_sort_timestamp)
     for r in sorted_records:
         for wname, wdata in ((r.get("ratelimit") or {}).get("windows") or {}).items():
+            entry = windows.setdefault(wname, {"current": 0, "peak": 0})
+            reset_ts = wdata.get("reset_ts")
+            if isinstance(reset_ts, int) and reset_ts > 0:
+                entry["reset_ts"] = reset_ts
+
             util = wdata.get("utilization")
             if not isinstance(util, (int, float)):
                 continue
-            entry = windows.setdefault(wname, {"current": 0, "peak": 0})
             entry["current"] = util
             if util > entry["peak"]:
                 entry["peak"] = util
@@ -606,9 +610,12 @@ def build_token_summary(records):
     plan_tier = None
     first_ts = None
     last_ts = None
-    for r in records:
-        if not plan_tier:
-            plan_tier = r.get("declared_plan_tier")
+    for r in sorted_records:
+        candidate_plan_tier = r.get("declared_plan_tier")
+        if candidate_plan_tier and plan_tier is None:
+            plan_tier = candidate_plan_tier
+        if candidate_plan_tier and candidate_plan_tier != "unknown":
+            plan_tier = candidate_plan_tier
         ts = _record_sort_timestamp(r)
         if ts:
             if first_ts is None or ts < first_ts:

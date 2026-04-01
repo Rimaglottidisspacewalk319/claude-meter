@@ -8,7 +8,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import dashboard  # noqa: E402
 
 
-def _make_record(record_id, timestamp, utilization_5h=0.10, input_tokens=100, output_tokens=50):
+def _make_record(
+    record_id,
+    timestamp,
+    utilization_5h=0.10,
+    input_tokens=100,
+    output_tokens=50,
+    reset_5h=None,
+    reset_7d=None,
+):
+    windows = {
+        "5h": {"status": "allowed", "utilization": utilization_5h},
+        "7d": {"status": "allowed", "utilization": utilization_5h * 0.5},
+    }
+    if reset_5h is not None:
+        windows["5h"]["reset_ts"] = reset_5h
+    if reset_7d is not None:
+        windows["7d"]["reset_ts"] = reset_7d
+
     return {
         "id": record_id,
         "request_timestamp": timestamp,
@@ -24,12 +41,7 @@ def _make_record(record_id, timestamp, utilization_5h=0.10, input_tokens=100, ou
             "cache_read_input_tokens": 0,
             "output_tokens": output_tokens,
         },
-        "ratelimit": {
-            "windows": {
-                "5h": {"status": "allowed", "utilization": utilization_5h},
-                "7d": {"status": "allowed", "utilization": utilization_5h * 0.5},
-            }
-        },
+        "ratelimit": {"windows": windows},
     }
 
 
@@ -58,6 +70,33 @@ def test_output_structure_with_sample_records():
     assert "chart.js@4.4.7" in html
     assert "viewport" in html
     assert "claude-meter" in html
+
+
+def test_output_includes_window_reset_labels():
+    records = [
+        _make_record(
+            1,
+            "2026-03-25T20:00:00.000+00:00",
+            utilization_5h=0.10,
+            reset_5h=1774900800,
+            reset_7d=1775268000,
+        ),
+        _make_record(
+            2,
+            "2026-03-25T20:01:00.000+00:00",
+            utilization_5h=0.15,
+            reset_5h=1774904400,
+            reset_7d=1775268000,
+        ),
+    ]
+
+    data = dashboard._build_dashboard_data(records)
+    html = dashboard._generate_html(data)
+
+    assert data["token_summary"]["windows"]["5h"]["reset_ts"] == 1774904400
+    assert data["token_summary"]["windows"]["7d"]["reset_ts"] == 1775268000
+    assert "Reset: 2026-03-30 21:00 UTC" in html
+    assert "Reset: 2026-04-04 02:00 UTC" in html
 
 
 def test_output_flag_writes_to_path(tmp_path):

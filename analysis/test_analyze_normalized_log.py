@@ -862,6 +862,73 @@ class TestAnalyzeNormalizedLog(unittest.TestCase):
         self.assertIsInstance(caps["claude-opus-4-6"], float)
         self.assertIsInstance(caps["claude-sonnet-4-6"], float)
 
+    def test_build_token_summary_prefers_latest_non_unknown_plan_tier(self):
+        records = [
+            {
+                "id": 1,
+                "request_timestamp": "2026-03-30T17:09:40.538825006Z",
+                "response_timestamp": "2026-03-30T17:09:41.000000000Z",
+                "status": 404,
+                "declared_plan_tier": "unknown",
+                "ratelimit": {"windows": {}},
+            },
+            {
+                "id": 2,
+                "request_timestamp": "2026-03-30T17:12:50.000000000Z",
+                "response_timestamp": "2026-03-30T17:12:51.000000000Z",
+                "status": 200,
+                "declared_plan_tier": "max_5x",
+                "response_model": "claude-sonnet-4-6",
+                "usage": {
+                    "input_tokens": 8,
+                    "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 0,
+                    "output_tokens": 1,
+                },
+                "ratelimit": {"windows": {"5h": {"utilization": 0.87}}},
+            },
+        ]
+
+        summary = analyzer.build_token_summary(records)
+
+        self.assertEqual(summary["plan_tier"], "max_5x")
+
+    def test_build_token_summary_carries_latest_window_reset_timestamp(self):
+        records = [
+            {
+                "id": 1,
+                "request_timestamp": "2026-03-30T17:12:50.000000000Z",
+                "response_timestamp": "2026-03-30T17:12:51.000000000Z",
+                "status": 200,
+                "declared_plan_tier": "max_5x",
+                "response_model": "claude-sonnet-4-6",
+                "usage": {"input_tokens": 8, "output_tokens": 1},
+                "ratelimit": {
+                    "windows": {
+                        "5h": {"utilization": 0.87, "reset_ts": 1774900800},
+                    }
+                },
+            },
+            {
+                "id": 2,
+                "request_timestamp": "2026-03-30T17:13:50.000000000Z",
+                "response_timestamp": "2026-03-30T17:13:51.000000000Z",
+                "status": 200,
+                "declared_plan_tier": "max_5x",
+                "response_model": "claude-sonnet-4-6",
+                "usage": {"input_tokens": 8, "output_tokens": 1},
+                "ratelimit": {
+                    "windows": {
+                        "5h": {"utilization": 0.88, "reset_ts": 1774904400},
+                    }
+                },
+            },
+        ]
+
+        summary = analyzer.build_token_summary(records)
+
+        self.assertEqual(summary["windows"]["5h"]["reset_ts"], 1774904400)
+
 
 if __name__ == "__main__":
     unittest.main()
